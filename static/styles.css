@@ -1,8 +1,0 @@
-body{background:url('/static/wallpaper.jpg') center/cover fixed no-repeat}
-.btn.gold{background:linear-gradient(135deg,#b8860b,#d4a017);color:#fff}
-.legend-box{display:inline-block;width:14px;height:14px;margin-right:6px;border-radius:3px}
-.legend-box.cat-drilling{background:#b8860b}
-.legend-box.cat-electrical{background:#daa520}
-.legend-box.cat-domestic{background:#cd853f}
-.legend-box.cat-ag{background:#deb887}
-.legend-box.task{background:#8a8a8a}
