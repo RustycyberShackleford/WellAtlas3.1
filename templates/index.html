@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card glass">
+  <div class="ctrl" style="justify-content:space-between;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select id="customerSelect"><option value="">All Customers</option></select>
+      <input id="searchInput" placeholder="Search sites/customers">
+      <button class="btn gold" id="locateBtn">Locate</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn gold" href="/gantt">Open Gantt</a>
+    </div>
+  </div>
+  <div id="map" style="height:60vh;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden"></div>
+</div>
+<script>
+const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+const map = L.map('map', { center:[37.5,-95.7], zoom:4, layers:[streets] });
+L.control.layers({ "Streets":streets }).addTo(map);
+
+async function fetchJSON(u){ const r=await fetch(u); if(!r.ok) throw new Error(await r.text()); return await r.json(); }
+async function loadCustomers(){
+  const list = await fetchJSON('/api/customers');
+  const sel = document.getElementById('customerSelect'); sel.innerHTML = '<option value="">All Customers</option>';
+  list.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.name; sel.appendChild(o); });
+}
+async function loadSites(){
+  const params = new URLSearchParams();
+  const cid = document.getElementById('customerSelect').value;
+  const q = document.getElementById('searchInput').value.trim();
+  if (cid) params.set('customer_id', cid);
+  if (q) params.set('q', q);
+  const sites = await fetchJSON('/api/sites?' + params.toString());
+  markers.clearLayers();
+  sites.forEach(s=>{
+     if (s.latitude && s.longitude){
+       const m = L.marker([s.latitude, s.longitude]).bindPopup(`<b>${s.name}</b><br>${s.customer||''}`);
+       markers.addLayer(m);
+     }
+  });
+  map.addLayer(markers);
+}
+const markers = L.layerGroup();
+document.getElementById('customerSelect').onchange = loadSites;
+document.getElementById('searchInput').oninput = (e)=>{ if(e.target.value.length===0 || e.target.value.length>2) loadSites(); };
+document.getElementById('locateBtn').onclick = ()=> map.locate({setView:true,maxZoom:12});
+loadCustomers().then(loadSites);
+</script>
+{% endblock %}

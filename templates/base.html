@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WellAtlas by Henry Suden</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <h1>WellAtlas by Henry Suden</h1>
+      <nav class="nav">
+        <a href="/" class="btn gold">Home</a>
+        <a href="/customers" class="btn gold">Customers</a>
+        <a href="/jobs" class="btn gold">Jobs</a>
+        <a href="/gantt" class="btn gold">Gantt</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>© 2025 WellAtlas</footer>
+</body>
+</html>
