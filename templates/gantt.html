@@ -1,0 +1,42 @@
+
+{% extends "base.html" %}{% block content %}
+<div class="card glass">
+  <h2 style="margin:0 0 8px">Gantt — {{ mode|default('global')|capitalize }}</h2>
+  <canvas id="gantt" height="280"></canvas>
+</div>
+<script>
+const ctx = document.getElementById('gantt').getContext('2d');
+const mode = "{{ mode or 'global' }}";
+const siteId = "{{ site_id or '' }}";
+const jobId = "{{ job_id or '' }}";
+function toMs(d){ return new Date(d).getTime(); }
+async function fetchData(){
+  if (mode === 'site' && siteId) {
+    const r = await fetch(`/api/gantt/site/${siteId}`); const j = await r.json();
+    const items = j.items || [];
+    return { labels: items.map(x=> x.job_number), starts: items.map(x=> toMs(x.start)), ends: items.map(x=> toMs(x.end)) };
+  } else if (mode === 'job' && jobId) {
+    const r = await fetch(`/api/gantt/job/${jobId}`); const j = await r.json();
+    const items = j.items || [];
+    return { labels: items.map(x=> x.name), starts: items.map(x=> x.start?toMs(x.start):null), ends: items.map(x=> x.end?toMs(x.end):null) };
+  } else {
+    const r = await fetch('/api/jobs_timeline'); const rows = await r.json();
+    return { labels: rows.map(r => `${r.site} • ${r.job_number}`), starts: rows.map(r => toMs(r.start)), ends: rows.map(r => toMs(r.end)) };
+  }
+}
+function makeChart(data){
+  const min = Math.min(...data.starts.filter(Boolean));
+  const max = Math.max(...data.ends.filter(Boolean));
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels: data.labels, datasets: [{ label: 'Timeline', indexAxis: 'y', parsing: false,
+      data: data.labels.map((_,i)=>({x:[data.starts[i], data.ends[i]], y:i})), borderWidth: 1 }]},
+    options: { responsive:true, maintainAspectRatio:false,
+      scales: { x:{ type:'time', time:{ unit:'day' }, min, max }, y:{ ticks:{ autoSkip:true, maxTicksLimit:20 } } },
+      plugins:{ legend:{ display:false } }
+    }
+  });
+}
+fetchData().then(makeChart);
+</script>
+{% endblock %}
