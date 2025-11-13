@@ -1,52 +1,132 @@
-
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="card-header">
-    <div class="card-title">Field Map · Willows → Cottonwood</div>
-  </div>
-  <div id="map" class="map-container"></div>
-  <div class="small" style="margin-top:0.4rem;">
-    Demo dataset: a few customers, multiple sites, and D/P/A/E jobs seeded across the Northstate corridor.
-  </div>
-</section>
-<section class="card">
-  <div class="card-header">
-    <div class="card-title">Today&apos;s Jobs (Demo)</div>
-  </div>
-  <ul class="list">
-    {% for job in todays_jobs %}
-    <li class="list-item">
-      <span class="division-pill division-{{ job['division_class'] }}">
-        {{ job['division'] }} {{ job['job_number'] }}
-      </span>
-      &nbsp;{{ job['customer_name'] }} &mdash; {{ job['site_name'] }}
-      <span class="status-pill status-{{ job['status_class'] }}" style="margin-left:0.4rem;">
-        {{ job['status'] }}{% if job['has_attachments'] %} 📎{% endif %}
-      </span>
-    </li>
-    {% else %}
-    <li class="list-item small">No demo jobs scheduled for today.</li>
-    {% endfor %}
-  </ul>
-</section>
-<script>
-  const map = L.map('map').setView([40.3, -122.2], 9);
-  L.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key={{ maptiler_key }}', {
-    maxZoom: 19,
-    attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
-  }).addTo(map);
 
-  const pins = {{ pins|tojson }};
-  pins.forEach(p => {
-    const marker = L.circleMarker([p.lat, p.lng], {
-      radius: 6,
-      fillOpacity: 0.9,
-      color: p.border,
-      weight: 2,
-      fillColor: p.fill
+<h1 style="color:#f3e7b3; margin-bottom:15px;">Site Map</h1>
+
+<!-- MAP CONTAINER -->
+<div id="map" style="width:100%; height:75vh; border-radius:12px; border:1px solid #d4af37;"></div>
+
+<!-- BUTTONS BELOW MAP -->
+<div style="margin-top:15px;">
+    <button class="btn" onclick="locateMe()">Locate Me</button>
+    <button class="btn" onclick="openAddSiteModal()">Add Site</button>
+</div>
+
+<!-- ADD SITE MODAL -->
+<div id="addSiteModal" class="modal" style="display:none; margin-top:25px;">
+    <h2 style="color:#d4af37;">Add New Site</h2>
+
+    <form method="POST" action="{{ url_for('add_site') }}">
+        <label>Site Name</label>
+        <input type="text" name="site_name" required>
+
+        <label>Street</label>
+        <input type="text" name="street">
+
+        <label>City</label>
+        <input type="text" name="city">
+
+        <label>State (2-letter)</label>
+        <input type="text" name="state" maxlength="2">
+
+        <label>ZIP</label>
+        <input type="text" name="zip">
+
+        <label>Contact Name</label>
+        <input type="text" name="contact_name">
+
+        <label>Phone</label>
+        <input type="text" name="phone">
+
+        <label>Email</label>
+        <input type="email" name="email">
+
+        <label>Notes</label>
+        <textarea name="notes" rows="3"></textarea>
+
+        <label>Latitude</label>
+        <input type="text" id="latField" name="lat" readonly>
+
+        <label>Longitude</label>
+        <input type="text" id="lngField" name="lng" readonly>
+
+        <button class="btn" type="submit">Save Site</button>
+        <button class="btn-critical" type="button" onclick="closeAddSiteModal()">Cancel</button>
+    </form>
+</div>
+
+
+<script>
+    /* -------------------------------------------
+       Initialize Map
+    ------------------------------------------- */
+    var map = L.map('map').setView([40.5, -122.3], 8); // Redding CA area default
+
+    /* MapTiler Satellite */
+    L.tileLayer(`https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key={{ maptiler_key }}`, {
+        tileSize: 256,
+        zoomOffset: 0,
+        maxZoom: 18
     }).addTo(map);
-    marker.bindPopup(`<strong>${p.customer}</strong><br>${p.site}<br>${p.division_job}`);
-  });
+
+    /* -------------------------------------------
+       Load existing sites from Flask
+    ------------------------------------------- */
+    var sites = {{ sites | tojson }};
+
+    sites.forEach(function(site) {
+        if (!site.lat || !site.lng) return;
+
+        var marker = L.marker([site.lat, site.lng]).addTo(map);
+
+        var popupHTML = `
+            <div style='color:#fff;'>
+                <strong style='color:#f3e7b3;'>${site.site_name}</strong><br>
+                ${site.street || ''} ${site.city || ''}<br>
+                <a class="data-link" href="/site/${site.id}">Open Site</a>
+            </div>
+        `;
+
+        marker.bindPopup(popupHTML);
+    });
+
+    /* -------------------------------------------
+       Locate Me Button
+    ------------------------------------------- */
+    function locateMe() {
+        if (!navigator.geolocation) {
+            alert("Geolocation not supported.");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            map.setView([lat, lng], 13);
+            L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+        });
+    }
+
+    /* -------------------------------------------
+       Add Site Modal Logic
+    ------------------------------------------- */
+    function openAddSiteModal() {
+        document.getElementById('addSiteModal').style.display = 'block';
+    }
+
+    function closeAddSiteModal() {
+        document.getElementById('addSiteModal').style.display = 'none';
+    }
+
+    /* Click on map → populate modal lat/lng automatically */
+    map.on('click', function(e) {
+        var lat = e.latlng.lat.toFixed(6);
+        var lng = e.latlng.lng.toFixed(6);
+
+        document.getElementById('latField').value = lat;
+        document.getElementById('lngField').value = lng;
+
+        openAddSiteModal();
+    });
 </script>
+
 {% endblock %}
