@@ -1,36 +1,118 @@
-
 {% extends "base.html" %}
 {% block content %}
-<section class="card" style="grid-column: 1 / -1;">
-  <div class="card-header">
-    <div class="card-title">Demo Schedule · Jobs Calendar</div>
-  </div>
-  <div class="small" style="margin-bottom:0.4rem;">
-    Grouped by job start date. Filters (division, status) can be layered in next iteration.
-  </div>
-  <ul class="list">
-    {% for day, jobs in grouped.items() %}
-    <li class="list-item">
-      <strong>{{ day }}</strong>
-      <ul class="list">
-        {% for j in jobs %}
-        <li class="list-item small">
-          <a href="{{ url_for('job_detail', job_id=j['id']) }}">
-            <span class="division-pill division-{{ j['division_class'] }}">
-              {{ j['division'] }} {{ j['job_number'] }}
-            </span>
-            &nbsp;{{ j['customer_name'] }} – {{ j['site_name'] }}
-          </a>
-          <span class="status-pill status-{{ j['status_class'] }}" style="margin-left:0.3rem;">
-            {{ j['status'] }}{% if j['has_attachments'] %} 📎{% endif %}
-          </span>
-        </li>
-        {% endfor %}
-      </ul>
-    </li>
-    {% else %}
-    <li class="list-item small">No demo jobs with dates.</li>
-    {% endfor %}
-  </ul>
-</section>
+
+<h1 style="color:#f3e7b3; margin-bottom:15px;">Scheduling Calendar</h1>
+
+<!-- FILTERS -->
+<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; align-items:flex-end;">
+
+    <div>
+        <label style="color:#d4af37; font-size:14px;">Division</label><br>
+        <select id="divisionFilter" style="padding:6px; border-radius:6px; border:1px solid #d4af37; background:rgba(0,0,0,0.7); color:#f3e7b3;">
+            <option value="All">All Divisions</option>
+            <option value="Drilling">Drilling</option>
+            <option value="Domestic">Domestic</option>
+            <option value="Ag">Ag</option>
+            <option value="Electrical">Electrical</option>
+        </select>
+    </div>
+
+    <div>
+        <label style="color:#d4af37; font-size:14px;">Status</label><br>
+        <select id="statusFilter" style="padding:6px; border-radius:6px; border:1px solid #d4af37; background:rgba(0,0,0,0.7); color:#f3e7b3;">
+            <option value="All">All Statuses</option>
+            <option value="Planned">Planned</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Complete">Complete</option>
+            <option value="On Hold">On Hold</option>
+        </select>
+    </div>
+
+</div>
+
+<!-- CALENDAR CONTAINER -->
+<div id="calendar" style="background:rgba(0,0,0,0.7); border-radius:12px; padding:10px;"></div>
+
+<script>
+    // Raw events injected from Flask
+    var rawEvents = {{ events | tojson }};
+
+    // Filter selects
+    var divisionFilter = document.getElementById('divisionFilter');
+    var statusFilter = document.getElementById('statusFilter');
+
+    // Map division to colors (matching your badge colors roughly)
+    function divisionColor(div) {
+        switch (div) {
+            case 'Drilling':   return '#ff5964'; // red
+            case 'Ag':         return '#5ce67a'; // green
+            case 'Domestic':   return '#f2d55c'; // yellow
+            case 'Electrical': return '#66a7ff'; // blue
+            default:           return '#d4af37'; // gold fallback
+        }
+    }
+
+    // Apply filters to raw events
+    function getFilteredEvents() {
+        var divVal = divisionFilter.value;
+        var statVal = statusFilter.value;
+
+        return rawEvents.map(function(e) {
+            // base copy with color
+            var ev = Object.assign({}, e);
+            ev.backgroundColor = divisionColor(e.division);
+            ev.borderColor = ev.backgroundColor;
+            ev.textColor = '#000';
+            return ev;
+        }).filter(function(e) {
+            var divOK = (divVal === 'All') || (e.division === divVal);
+            var statOK = (statVal === 'All') || (e.status === statVal);
+            return divOK && statOK;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',                    // default = Month
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listYear'
+            },
+            buttonText: {
+                today: 'Today',
+                month: 'Month',
+                week: 'Week',
+                day: 'Day',
+                listYear: 'Year'
+            },
+            height: 'auto',
+            events: getFilteredEvents(),
+
+            eventClick: function(info) {
+                // Let FullCalendar follow the URL to job_detail
+                if (info.event.url) {
+                    window.location.href = info.event.url;
+                    info.jsEvent.preventDefault();
+                }
+            }
+        });
+
+        calendar.render();
+
+        // Re-filter when user changes dropdowns
+        function refilter() {
+            var filtered = getFilteredEvents();
+            calendar.removeAllEvents();
+            calendar.addEventSource(filtered);
+        }
+
+        divisionFilter.addEventListener('change', refilter);
+        statusFilter.addEventListener('change', refilter);
+    });
+</script>
+
 {% endblock %}
