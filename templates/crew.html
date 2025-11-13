@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card glass">
+  <h2>Crew</h2>
+  <form id="addForm" class="form-row">
+    <input name="name" placeholder="Name" required>
+    <input name="role" placeholder="Role">
+    <input name="phone" placeholder="Phone">
+    <input name="email" placeholder="Email">
+    <button class="btn gold" type="submit">Add</button>
+  </form>
+  <table class="table">
+    <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th></tr></thead>
+    <tbody id="crewBody"></tbody>
+  </table>
+</div>
+<script>
+async function j(u,opts){const r=await fetch(u,opts||{});if(!r.ok)throw new Error(await r.text());return await r.json();}
+async function loadCrew(){
+  const data=await j('/api/crew');
+  const tb=document.getElementById('crewBody');tb.innerHTML='';
+  data.forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${p.name}</td><td>${p.role||''}</td><td>${p.phone||''}</td><td>${p.email||''}</td>`;
+    tb.appendChild(tr);
+  });
+}
+document.getElementById('addForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const body=JSON.stringify(Object.fromEntries(fd.entries()));
+  await j('/api/crew',{method:'POST',headers:{'Content-Type':'application/json'},body});
+  e.target.reset();
+  loadCrew();
+});
+loadCrew();
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card glass">
+  <h2>Job Calendar</h2>
+  <div class="calendar-filters">
+    <select id="customerFilter"><option value="">All Customers</option></select>
+    <select id="categoryFilter">
+      <option value="">All Divisions</option>
+      <option>Drilling</option>
+      <option>Electrical</option>
+      <option>Domestic</option>
+      <option>Ag</option>
+    </select>
+    <select id="statusFilter">
+      <option value="">All Status</option>
+      <option>Planned</option>
+      <option>Scheduled</option>
+      <option>In Progress</option>
+      <option>Complete</option>
+      <option>On Hold</option>
+    </select>
+    <a class="btn gold" href="/calendar.ics">Export iCal</a>
+  </div>
+  <div id="calendar"></div>
+</div>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+async function j(u){const r=await fetch(u);if(!r.ok)throw new Error(await r.text());return await r.json();}
+function colorFor(cat){const map={"Drilling":"#b8860b","Electrical":"#5457ff","Domestic":"#16a34a","Ag":"#e11d48"};return map[cat]||"#b8860b";}
+async function loadCustomers(){
+  const list=await j('/api/customers');
+  const sel=document.getElementById('customerFilter');
+  sel.innerHTML='<option value="">All Customers</option>';
+  list.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+}
+function buildQuery(info){
+  const qs=new URLSearchParams();
+  const c=document.getElementById('customerFilter').value;
+  const k=document.getElementById('categoryFilter').value;
+  const s=document.getElementById('statusFilter').value;
+  if(c)qs.set('customer_id',c);
+  if(k)qs.set('job_category',k);
+  if(s)qs.set('status',s);
+  qs.set('start',info.startStr);qs.set('end',info.endStr);
+  return qs.toString();
+}
+document.addEventListener('DOMContentLoaded',async function(){
+  await loadCustomers();
+  const calEl=document.getElementById('calendar');
+  const calendar=new FullCalendar.Calendar(calEl,{
+    initialView:'dayGridMonth',height:'auto',
+    headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay,listWeek'},
+    events:function(info,success,failure){
+      const url='/api/calendar_events?'+buildQuery(info);
+      fetch(url).then(r=>r.json()).then(data=>{
+        success(data.map(e=>({
+          id:e.id,title:e.title,start:e.start,end:e.end,url:e.url,
+          backgroundColor:colorFor(e.category),borderColor:colorFor(e.category),
+          extendedProps:{category:e.category,status:e.status,customer:e.customer,site:e.site}
+        })));
+      }).catch(failure);
+    },
+    eventDidMount:function(info){
+      const p=info.event.extendedProps;
+      info.el.title=`${info.event.title}\n${p.customer} — ${p.site}\n${p.category} · ${p.status}`;
+    }
+  });
+  calendar.render();
+  ['customerFilter','categoryFilter','statusFilter'].forEach(id=>{
+    document.getElementById(id).addEventListener('change',()=>calendar.refetchEvents());
+  });
+});
+</script>
+{% endblock %}

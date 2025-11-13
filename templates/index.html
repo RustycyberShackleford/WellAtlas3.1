@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card glass">
+  <div id="map" class="map-shell"></div>
+</div>
+<script>
+const mtKey = "{{ maptiler_key }}";
+const hasKey = mtKey && mtKey.length > 0;
+const hybrid = hasKey ? L.tileLayer(`https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${mtKey}`, {maxZoom:19}) : null;
+const streets = hasKey ? L.tileLayer(`https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${mtKey}`, {maxZoom:19}) : null;
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19});
+const baseLayer = hasKey ? hybrid : osm;
+const map = L.map('map',{center:[37.5,-95.7],zoom:4,layers:[baseLayer]});
+if(hasKey){
+  L.control.layers({'Hybrid':hybrid,'Streets':streets},{}).addTo(map);
+}
+async function j(u){const r=await fetch(u);if(!r.ok)throw new Error(await r.text());return await r.json();}
+async function loadCustomersDropdown(){
+  const list = await j('/api/customers');
+  const sel = document.getElementById('customerDropdown');
+  sel.innerHTML = '<option value="">All Customers</option>';
+  list.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+}
+const markers=L.layerGroup().addTo(map);
+async function loadSites(){
+  const params=new URLSearchParams();
+  const cust=document.getElementById('customerDropdown').value;
+  const q=document.getElementById('globalSearch').value.trim();
+  if(cust)params.set('customer_id',cust);
+  if(q)params.set('q',q);
+  const sites=await j('/api/sites?'+params.toString());
+  markers.clearLayers();
+  sites.forEach(s=>{
+    if(s.latitude&&s.longitude){
+      const m=L.marker([s.latitude,s.longitude]).bindPopup(
+        `<b>${s.name}</b><br>${s.customer||''}<br>`+
+        (s.id?`<a href='/gantt/site/${s.id}'>Site Gantt</a>`:''));
+      markers.addLayer(m);
+    }
+  });
+}
+document.getElementById('customerDropdown').addEventListener('change',loadSites);
+document.getElementById('globalSearch').addEventListener('input',e=>{
+  if(e.target.value.length===0||e.target.value.length>2){loadSites();}
+});
+document.getElementById('centerOnMe').addEventListener('click',()=>{map.locate({setView:true,maxZoom:12});});
+loadCustomersDropdown().then(loadSites);
+</script>
+{% endblock %}
