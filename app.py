@@ -9,10 +9,14 @@ from flask import Flask, render_template, request, redirect, url_for, send_from_
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "wellatlas-dev-key")
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "wellatlas_v4_demo.db")
-UPLOAD_ROOT = os.path.join("static", "uploads", "jobs")  # static/uploads/jobs/<job_id>/
+# ✅ NEW DB NAME (replace the old v4_demo file)
+DB_PATH = os.path.join(os.path.dirname(__file__), "wellatlas.db")
+
+# For file uploads
+UPLOAD_ROOT = os.path.join("static", "uploads", "jobs")  
 os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
+# MapTiler key
 MAPTILER_KEY = os.environ.get("MAPTILER_KEY", "YOUR_MAPTILER_KEY_HERE")
 
 
@@ -72,7 +76,7 @@ def init_db():
         )
     """)
 
-    # Job Files (attachments)
+    # Job Files
     cur.execute("""
         CREATE TABLE IF NOT EXISTS job_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,10 +149,12 @@ def filetype_from_name(fn):
 def home():
     conn = get_db()
     cur = conn.cursor()
+
+    # Load all sites with coordinates
     cur.execute("""
-        SELECT s.id, s.site_name, s.street, s.city, s.state, s.zip, s.lat, s.lng
-        FROM sites s
-        WHERE s.lat IS NOT NULL AND s.lng IS NOT NULL
+        SELECT id, site_name, street, city, state, zip, lat, lng
+        FROM sites
+        WHERE lat IS NOT NULL AND lng IS NOT NULL
     """)
     rows = cur.fetchall()
     conn.close()
@@ -186,6 +192,7 @@ def customers():
 def customer_detail(customer_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM customers WHERE id = ?", (customer_id,))
     customer = cur.fetchone()
     if not customer:
@@ -198,6 +205,7 @@ def customer_detail(customer_id):
         ORDER BY site_name
     """, (customer_id,))
     sites = cur.fetchall()
+
     conn.close()
     return render_template("customer_detail.html", customer=customer, sites=sites)
 
@@ -207,15 +215,19 @@ def new_customer():
     if request.method == "POST":
         name = request.form.get("name")
         notes = request.form.get("notes")
+
         if not name:
             flash("Customer name is required.")
             return redirect(url_for("new_customer"))
+
         conn = get_db()
         cur = conn.cursor()
         cur.execute("INSERT INTO customers (name, notes) VALUES (?, ?)", (name, notes))
         conn.commit()
         conn.close()
+
         return redirect(url_for("customers"))
+
     return render_template("new_customer.html")
 
 
@@ -226,13 +238,14 @@ def new_customer():
 def site_detail(site_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM sites WHERE id = ?", (site_id,))
     site = cur.fetchone()
     if not site:
         conn.close()
         abort(404)
 
-    # Jobs at this site
+    # Jobs for this site
     cur.execute("""
         SELECT * FROM jobs
         WHERE site_id = ?
@@ -241,6 +254,7 @@ def site_detail(site_id):
             start_date ASC
     """, (site_id,))
     job_rows = cur.fetchall()
+
     conn.close()
 
     jobs = []
@@ -259,18 +273,17 @@ def site_detail(site_id):
             "is_overdue": is_overdue(ed, j["status"] or "")
         })
 
-    return render_template(
-        "site_detail.html",
-        site=site,
-        jobs=jobs,
-        maptiler_key=MAPTILER_KEY
-    )
+    return render_template("site_detail.html",
+                           site=site,
+                           jobs=jobs,
+                           maptiler_key=MAPTILER_KEY)
 
 
 @app.route("/edit_site/<int:site_id>", methods=["GET", "POST"])
 def edit_site(site_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM sites WHERE id = ?", (site_id,))
     site = cur.fetchone()
     if not site:
@@ -293,7 +306,9 @@ def edit_site(site_id):
             SET site_name = ?, street = ?, city = ?, state = ?, zip = ?,
                 contact_name = ?, phone = ?, email = ?, notes = ?
             WHERE id = ?
-        """, (site_name, street, city, state, zip_code, contact_name, phone, email, notes, site_id))
+        """, (site_name, street, city, state, zip_code,
+              contact_name, phone, email, notes, site_id))
+
         conn.commit()
         conn.close()
         return redirect(url_for("site_detail", site_id=site_id))
@@ -329,13 +344,13 @@ def add_site():
 
     conn = get_db()
     cur = conn.cursor()
-    # For now no forced customer_id; you can wire it later
     cur.execute("""
         INSERT INTO sites (customer_id, site_name, street, city, state, zip,
                            contact_name, phone, email, notes, lat, lng)
         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (site_name, street, city, state, zip_code,
           contact_name, phone, email, notes, lat_val, lng_val))
+
     conn.commit()
     conn.close()
 
@@ -349,16 +364,14 @@ def add_site():
 def job_detail(job_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
     job = cur.fetchone()
     if not job:
         conn.close()
         abort(404)
 
-    cur.execute("""
-        SELECT * FROM sites
-        WHERE id = ?
-    """, (job["site_id"],))
+    cur.execute("SELECT * FROM sites WHERE id = ?", (job["site_id"],))
     site = cur.fetchone()
     if not site:
         conn.close()
@@ -380,6 +393,7 @@ def job_detail(job_id):
     # Notes
     cur.execute("SELECT * FROM job_notes WHERE job_id = ? ORDER BY id DESC", (job_id,))
     notes_rows = cur.fetchall()
+
     notes = []
     for n in notes_rows:
         notes.append({
@@ -393,7 +407,7 @@ def job_detail(job_id):
     sd = job["start_date"]
     ed = job["end_date"]
 
-    job_enriched = {
+    job_display = {
         "id": job["id"],
         "job_number": job["job_number"],
         "title": job["title"],
@@ -405,21 +419,19 @@ def job_detail(job_id):
         "duration": calc_duration(sd, ed)
     }
 
-    return render_template(
-        "job_detail.html",
-        job=job_enriched,
-        site=site,
-        files=files,
-        notes=notes,
-        maptiler_key=MAPTILER_KEY
-    )
+    return render_template("job_detail.html",
+                           job=job_display,
+                           site=site,
+                           files=files,
+                           notes=notes,
+                           maptiler_key=MAPTILER_KEY)
 
 
 @app.route("/add_job", methods=["GET", "POST"])
 def add_job():
     conn = get_db()
     cur = conn.cursor()
-    # Let user choose site from list
+
     cur.execute("SELECT id, site_name FROM sites ORDER BY site_name")
     sites = cur.fetchall()
 
@@ -434,11 +446,15 @@ def add_job():
         end_date = request.form.get("end_date")
 
         cur.execute("""
-            INSERT INTO jobs (site_id, job_number, title, division, status, description, start_date, end_date)
+            INSERT INTO jobs (site_id, job_number, title, division, status,
+                              description, start_date, end_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (site_id, job_number, title, division, status, description, start_date, end_date))
+        """, (site_id, job_number, title, division, status,
+              description, start_date, end_date))
+
         conn.commit()
         conn.close()
+
         return redirect(url_for("home"))
 
     conn.close()
@@ -449,6 +465,7 @@ def add_job():
 def add_job_with_site(site_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT id, site_name FROM sites WHERE id = ?", (site_id,))
     site = cur.fetchone()
     if not site:
@@ -465,11 +482,15 @@ def add_job_with_site(site_id):
         end_date = request.form.get("end_date")
 
         cur.execute("""
-            INSERT INTO jobs (site_id, job_number, title, division, status, description, start_date, end_date)
+            INSERT INTO jobs (site_id, job_number, title, division, status,
+                              description, start_date, end_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (site_id, job_number, title, division, status, description, start_date, end_date))
+        """, (site_id, job_number, title, division, status,
+              description, start_date, end_date))
+
         conn.commit()
         conn.close()
+
         return redirect(url_for("site_detail", site_id=site_id))
 
     conn.close()
@@ -480,6 +501,7 @@ def add_job_with_site(site_id):
 def edit_job(job_id):
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
     job = cur.fetchone()
     if not job:
@@ -500,9 +522,12 @@ def edit_job(job_id):
             SET job_number = ?, title = ?, division = ?, status = ?,
                 description = ?, start_date = ?, end_date = ?
             WHERE id = ?
-        """, (job_number, title, division, status, description, start_date, end_date, job_id))
+        """, (job_number, title, division, status,
+              description, start_date, end_date, job_id))
+
         conn.commit()
         conn.close()
+
         return redirect(url_for("job_detail", job_id=job_id))
 
     conn.close()
@@ -515,18 +540,19 @@ def edit_job(job_id):
 @app.route("/job/<int:job_id>/upload", methods=["POST"])
 def upload_job_file(job_id):
     file = request.files.get("file")
+
     if not file or file.filename == "":
         flash("No file selected.")
         return redirect(url_for("job_detail", job_id=job_id))
 
     filename = file.filename
-    jdir = os.path.join(UPLOAD_ROOT, str(job_id))
-    os.makedirs(jdir, exist_ok=True)
-    save_path = os.path.join(jdir, filename)
+    job_dir = os.path.join(UPLOAD_ROOT, str(job_id))
+    os.makedirs(job_dir, exist_ok=True)
+
+    save_path = os.path.join(job_dir, filename)
     file.save(save_path)
 
     filetype = filetype_from_name(filename)
-    # Build URL
     rel_path = os.path.join("uploads", "jobs", str(job_id), filename)
     url = url_for("static", filename=rel_path)
 
@@ -536,6 +562,7 @@ def upload_job_file(job_id):
         INSERT INTO job_files (job_id, filename, filetype, url)
         VALUES (?, ?, ?, ?)
     """, (job_id, filename, filetype, url))
+
     conn.commit()
     conn.close()
 
@@ -548,16 +575,19 @@ def upload_job_file(job_id):
 @app.route("/job/<int:job_id>/note", methods=["POST"])
 def add_job_note(job_id):
     note = request.form.get("note")
+
     if not note:
         return redirect(url_for("job_detail", job_id=job_id))
 
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO job_notes (job_id, text, timestamp)
         VALUES (?, ?, ?)
-    """, (job_id, note, ts))
+    """, (job_id, note, timestamp))
+
     conn.commit()
     conn.close()
 
@@ -571,20 +601,21 @@ def add_job_note(job_id):
 def calendar_view():
     conn = get_db()
     cur = conn.cursor()
-    # join jobs with sites
+
     cur.execute("""
-        SELECT j.id, j.job_number, j.title, j.start_date, j.end_date,
-               j.division, j.status
-        FROM jobs j
-        ORDER BY j.start_date
+        SELECT id, job_number, title, start_date, end_date, division, status
+        FROM jobs
+        ORDER BY start_date
     """)
     rows = cur.fetchall()
+
     conn.close()
 
     events = []
     for r in rows:
         if not r["start_date"]:
             continue
+
         events.append({
             "id": r["id"],
             "title": f"{r['job_number']} – {r['title']}",
@@ -599,27 +630,28 @@ def calendar_view():
 
 
 # -------------------------------------------------
-# Global Gantt Placeholder
+# Gantt View (all jobs)
 # -------------------------------------------------
 @app.route("/gantt")
 def gantt_global():
-    # You can expand this later to aggregate all jobs
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("""
-        SELECT j.id, j.job_number, j.title, j.start_date, j.end_date,
-               s.site_name
+        SELECT j.id, j.job_number, j.title, j.start_date, j.end_date, s.site_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         ORDER BY j.start_date
     """)
     rows = cur.fetchall()
+
     conn.close()
 
     tasks = []
     for r in rows:
         if not r["start_date"] or not r["end_date"]:
             continue
+
         tasks.append({
             "id": r["id"],
             "name": f"{r['job_number']} – {r['title']} ({r['site_name']})",
@@ -631,7 +663,7 @@ def gantt_global():
 
 
 # -------------------------------------------------
-# Settings Placeholder
+# Settings Page
 # -------------------------------------------------
 @app.route("/settings")
 def settings():
