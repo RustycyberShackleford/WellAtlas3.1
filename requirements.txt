@@ -1,6 +1,0 @@
-Flask==3.0.3
-gunicorn
-Jinja2
-Werkzeug
-itsdangerous
-click
