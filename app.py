@@ -53,11 +53,11 @@ def home():
     jobs_today = cur.fetchall()
 
 
-return render_template(
-    "index.html",
-    pins=pins,
-    jobs_today=jobs_today,
-    maptiler_key=MAPTILER_KEY   # <-- THIS is the missing part
+     return render_template(
+        "index.html",
+        pins=pins,
+        jobs_today=jobs_today,
+        maptiler_key=MAPTILER_KEY   # <-- THIS is the missing part
 )
 
 
