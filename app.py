@@ -3,16 +3,12 @@ import sqlite3
 from flask import Flask, render_template, g
 from datetime import date as _date
 
-# ---------------------------------------------------
-# MapTiler Key (pulled from Render environment)
-# ---------------------------------------------------
+# MapTiler key
 MAPTILER_KEY = os.environ.get("MAPTILER_KEY", "")
 
 app = Flask(__name__)
 
-# ---------------------------------------------------
-# Database Path
-# ---------------------------------------------------
+# DB path
 DB_PATH = os.path.join(os.path.dirname(__file__), "wellatlas_v4_1.db")
 
 def get_db():
@@ -27,31 +23,26 @@ def close_db(error):
     if db is not None:
         db.close()
 
-# ---------------------------------------------------
-# Homepage — Map + Today's Jobs
-# ---------------------------------------------------
+
+# ------------------------------------------------
+# HOME
+# ------------------------------------------------
 @app.route("/")
 def home():
     db = get_db()
     cur = db.cursor()
 
-    # get map pins
     cur.execute("""
-        SELECT id,
-               s_name AS site_name,
-               lat,
-               lng
+        SELECT id, s_name AS site_name, lat, lng
         FROM sites
         WHERE lat IS NOT NULL AND lng IS NOT NULL
     """)
     pins = [dict(row) for row in cur.fetchall()]
 
-    # today's job list
     today = _date.today().isoformat()
+
     cur.execute("""
-        SELECT j.id,
-               j.j_title AS title,
-               s.s_name AS site_name
+        SELECT j.id, j.j_title AS title, s.s_name AS site_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         WHERE j.start_date = ?
@@ -66,20 +57,24 @@ def home():
         maptiler_key=MAPTILER_KEY
     )
 
-# ---------------------------------------------------
-# Customers List
-# ---------------------------------------------------
+
+# ------------------------------------------------
+# CUSTOMERS
+# ------------------------------------------------
 @app.route("/customers")
 def customers():
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT * FROM customers ORDER BY name ASC")
-    customers = cur.fetchall()
-    return render_template("customers.html", customers=customers)
 
-# ---------------------------------------------------
-# Customer Detail
-# ---------------------------------------------------
+    cur.execute("SELECT * FROM customers ORDER BY name ASC")
+    rows = cur.fetchall()
+
+    return render_template("customers.html", customers=rows)
+
+
+# ------------------------------------------------
+# CUSTOMER DETAIL
+# ------------------------------------------------
 @app.route("/customer/<int:customer_id>")
 def customer_detail(customer_id):
     db = get_db()
@@ -97,9 +92,10 @@ def customer_detail(customer_id):
         sites=sites
     )
 
-# ---------------------------------------------------
-# Site Detail
-# ---------------------------------------------------
+
+# ------------------------------------------------
+# SITE DETAIL
+# ------------------------------------------------
 @app.route("/sites/<int:site_id>")
 def site_detail(site_id):
     db = get_db()
@@ -116,24 +112,19 @@ def site_detail(site_id):
     """, (site_id,))
     jobs = cur.fetchall()
 
-    return render_template(
-        "site_detail.html",
-        site=site,
-        jobs=jobs
-    )
+    return render_template("site_detail.html", site=site, jobs=jobs)
 
-# ---------------------------------------------------
-# Job Detail
-# ---------------------------------------------------
+
+# ------------------------------------------------
+# JOB DETAIL
+# ------------------------------------------------
 @app.route("/job/<int:job_id>")
 def job_detail(job_id):
     db = get_db()
     cur = db.cursor()
 
     cur.execute("""
-        SELECT j.*,
-               s.s_name AS site_name,
-               c.name AS customer_name
+        SELECT j.*, s.s_name AS site_name, c.name AS customer_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         JOIN customers c ON s.customer_id = c.id
@@ -143,17 +134,17 @@ def job_detail(job_id):
 
     return render_template("job_detail.html", job=job)
 
-# ---------------------------------------------------
-# Calendar View
-# ---------------------------------------------------
+
+# ------------------------------------------------
+# CALENDAR
+# ------------------------------------------------
 @app.route("/calendar")
 def calendar_view():
     db = get_db()
     cur = db.cursor()
 
     cur.execute("""
-        SELECT j.*,
-               s.s_name AS site_name
+        SELECT j.*, s.s_name AS site_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         ORDER BY start_date
@@ -162,9 +153,6 @@ def calendar_view():
 
     return render_template("calendar.html", jobs=jobs)
 
-# ---------------------------------------------------
-# Run Local
-# ---------------------------------------------------
+
 if __name__ == "__main__":
     app.run(debug=True)
-
