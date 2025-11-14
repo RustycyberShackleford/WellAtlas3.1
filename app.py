@@ -40,7 +40,7 @@ def status_class(status):
 app = Flask(__name__)
 app.teardown_appcontext(close_db)
 
-@app.route("/")
+@app.route("/", methods=["GET", "HEAD"])
 def home():
     db = get_db()
     key = os.environ.get("MAPTILER_KEY", "")
