@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="content-card">
+    <h2>Add New Job</h2>
+
+    <form action="{{ url_for('add_job') }}" method="POST" class="wa-form">
+
+        <label>Site:</label>
+        <select name="site_id" required>
+            {% for s in sites %}
+            <option value="{{ s['id'] }}">{{ s['site_name'] }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Job Number:</label>
+        <input type="text" name="job_number">
+
+        <label>Title:</label>
+        <input type="text" name="title">
+
+        <label>Division:</label>
+        <select name="division">
+            <option value="Drilling">Drilling</option>
+            <option value="Domestic">Domestic</option>
+            <option value="Ag">Ag</option>
+            <option value="Electrical">Electrical</option>
+        </select>
+
+        <label>Status:</label>
+        <input type="text" name="status">
+
+        <label>Description:</label>
+        <textarea name="description" rows="4"></textarea>
+
+        <label>Start Date:</label>
+        <input type="date" name="start_date">
+
+        <label>End Date:</label>
+        <input type="date" name="end_date">
+
+        <button type="submit" class="wa-button">Save Job</button>
+        <a href="{{ url_for('home') }}" class="wa-button-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}
