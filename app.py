@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # Change this if you renamed the file
-DATABASE = "wellatlas.db"   # or "wellatlas_v5.db"
+DATABASE = "wellatlas_v5.db"   # or "wellatlas_v5.db"
 
 
 def get_db():
