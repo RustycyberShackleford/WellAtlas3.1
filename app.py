@@ -117,6 +117,20 @@ def site_detail(id):
 
     return render_template("site_detail.html", site=site, jobs=jobs)
 
+@app.route("/calendar")
+def calendar_view():
+    db = get_db()
+    cur = db.cursor()
+    jobs = cur.execute("""
+        SELECT j.*, s.site_name, c.name AS customer_name
+        FROM jobs j
+        JOIN sites s ON j.site_id = s.id
+        JOIN customers c ON s.customer_id = c.id
+        ORDER BY j.start_date ASC
+    """).fetchall()
+
+    return render_template("calendar.html", jobs=jobs)
+
 # ----------------------------------------
 # PAGE: JOB DETAIL
 # ----------------------------------------
