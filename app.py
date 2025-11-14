@@ -13,7 +13,7 @@ def get_db():
     return conn
 
 @app.route("/")
-def index():
+def home():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM customers ORDER BY name ASC")
