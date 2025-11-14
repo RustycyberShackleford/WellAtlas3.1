@@ -1,4 +1,8 @@
 import os
+ 
+MAPTILER_KEY = os.environ.get("MAPTILER_KEY", "")   # add this at the top of app.py
+
+
 import sqlite3
 from flask import Flask, render_template, g
 from datetime import date as _date
@@ -48,11 +52,14 @@ def home():
     """, (today,))
     jobs_today = cur.fetchall()
 
-    return render_template(
-        "index.html",
-        pins=pins,
-        jobs_today=jobs_today,
-    )
+
+return render_template(
+    "index.html",
+    pins=pins,
+    jobs_today=jobs_today,
+    maptiler_key=MAPTILER_KEY   # <-- THIS is the missing part
+)
+
 
 # ---------------------------------------------
 # Customers list
