@@ -1,15 +1,18 @@
 import os
- 
-MAPTILER_KEY = os.environ.get("MAPTILER_KEY", "")   # add this at the top of app.py
-
-
 import sqlite3
 from flask import Flask, render_template, g
 from datetime import date as _date
 
+# ---------------------------------------------------
+# MapTiler Key (pulled from Render environment)
+# ---------------------------------------------------
+MAPTILER_KEY = os.environ.get("MAPTILER_KEY", "")
+
 app = Flask(__name__)
 
-# Correct DB path
+# ---------------------------------------------------
+# Database Path
+# ---------------------------------------------------
 DB_PATH = os.path.join(os.path.dirname(__file__), "wellatlas_v4_1.db")
 
 def get_db():
@@ -24,27 +27,31 @@ def close_db(error):
     if db is not None:
         db.close()
 
-# ---------------------------------------------
-# Homepage (map + today's jobs)
-# ---------------------------------------------
+# ---------------------------------------------------
+# Homepage — Map + Today's Jobs
+# ---------------------------------------------------
 @app.route("/")
 def home():
     db = get_db()
     cur = db.cursor()
 
-    # FIXED column names (s_name)
+    # get map pins
     cur.execute("""
-        SELECT id, s_name AS site_name, lat, lng
+        SELECT id,
+               s_name AS site_name,
+               lat,
+               lng
         FROM sites
         WHERE lat IS NOT NULL AND lng IS NOT NULL
     """)
     pins = [dict(row) for row in cur.fetchall()]
 
+    # today's job list
     today = _date.today().isoformat()
-
-    # FIXED job + site join names
     cur.execute("""
-        SELECT j.id, j.j_title AS title, s.s_name AS site_name
+        SELECT j.id,
+               j.j_title AS title,
+               s.s_name AS site_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         WHERE j.start_date = ?
@@ -52,43 +59,36 @@ def home():
     """, (today,))
     jobs_today = cur.fetchall()
 
-
-     return render_template(
+    return render_template(
         "index.html",
         pins=pins,
         jobs_today=jobs_today,
-        maptiler_key=MAPTILER_KEY   # <-- THIS is the missing part
-)
+        maptiler_key=MAPTILER_KEY
+    )
 
-
-# ---------------------------------------------
-# Customers list
-# ---------------------------------------------
+# ---------------------------------------------------
+# Customers List
+# ---------------------------------------------------
 @app.route("/customers")
 def customers():
     db = get_db()
     cur = db.cursor()
-
-    # FIXED c_name
-    cur.execute("SELECT id, c_name AS name FROM customers ORDER BY c_name ASC")
+    cur.execute("SELECT * FROM customers ORDER BY name ASC")
     customers = cur.fetchall()
-
     return render_template("customers.html", customers=customers)
 
-# ---------------------------------------------
-# Customer detail
-# ---------------------------------------------
+# ---------------------------------------------------
+# Customer Detail
+# ---------------------------------------------------
 @app.route("/customer/<int:customer_id>")
 def customer_detail(customer_id):
     db = get_db()
     cur = db.cursor()
 
-    # FIXED c_name
-    cur.execute("SELECT id, c_name AS name FROM customers WHERE id=?", (customer_id,))
+    cur.execute("SELECT * FROM customers WHERE id=?", (customer_id,))
     customer = cur.fetchone()
 
-    # FIXED s_name
-    cur.execute("SELECT id, s_name AS site_name FROM sites WHERE customer_id=?", (customer_id,))
+    cur.execute("SELECT * FROM sites WHERE customer_id=?", (customer_id,))
     sites = cur.fetchall()
 
     return render_template(
@@ -97,24 +97,22 @@ def customer_detail(customer_id):
         sites=sites
     )
 
-# ---------------------------------------------
-# Site detail
-# ---------------------------------------------
+# ---------------------------------------------------
+# Site Detail
+# ---------------------------------------------------
 @app.route("/sites/<int:site_id>")
 def site_detail(site_id):
     db = get_db()
     cur = db.cursor()
 
-    # FIXED s_name
     cur.execute("SELECT * FROM sites WHERE id=?", (site_id,))
     site = cur.fetchone()
 
-    # FIXED join + names
     cur.execute("""
-        SELECT j.id, j.j_title AS title, j.start_date
-        FROM jobs j
-        WHERE j.site_id=?
-        ORDER BY j.start_date
+        SELECT *
+        FROM jobs
+        WHERE site_id=?
+        ORDER BY start_date
     """, (site_id,))
     jobs = cur.fetchall()
 
@@ -124,49 +122,49 @@ def site_detail(site_id):
         jobs=jobs
     )
 
-# ---------------------------------------------
-# Job detail
-# ---------------------------------------------
+# ---------------------------------------------------
+# Job Detail
+# ---------------------------------------------------
 @app.route("/job/<int:job_id>")
 def job_detail(job_id):
     db = get_db()
     cur = db.cursor()
 
-    # FIXED: j_title, s_name, c_name
     cur.execute("""
-        SELECT j.*, 
-               j.j_title AS title,
+        SELECT j.*,
                s.s_name AS site_name,
-               c.c_name AS customer_name
+               c.name AS customer_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
         JOIN customers c ON s.customer_id = c.id
-        WHERE j.id = ?
+        WHERE j.id=?
     """, (job_id,))
     job = cur.fetchone()
 
     return render_template("job_detail.html", job=job)
 
-# ---------------------------------------------
-# Calendar view
-# ---------------------------------------------
+# ---------------------------------------------------
+# Calendar View
+# ---------------------------------------------------
 @app.route("/calendar")
 def calendar_view():
     db = get_db()
     cur = db.cursor()
 
-    # FIXED names
     cur.execute("""
-        SELECT j.*, j.j_title AS title, s.s_name AS site_name
+        SELECT j.*,
+               s.s_name AS site_name
         FROM jobs j
         JOIN sites s ON j.site_id = s.id
-        ORDER BY j.start_date
+        ORDER BY start_date
     """)
     jobs = cur.fetchall()
 
     return render_template("calendar.html", jobs=jobs)
 
-
+# ---------------------------------------------------
+# Run Local
+# ---------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
 
