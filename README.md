@@ -1,2 +1,0 @@
-# WellAtlas Full Prod
-Placeholder
