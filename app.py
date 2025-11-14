@@ -22,9 +22,31 @@ def get_db():
 def home():
     conn = get_db()
     cur = conn.cursor()
+
+    # Fetch customers
     cur.execute("SELECT * FROM customers ORDER BY name ASC")
     customers = cur.fetchall()
-    return render_template("index.html", customers=customers)
+
+    # Fetch site coordinates for map pins
+    cur.execute("""
+        SELECT id, site_name, lat, lng
+        FROM sites
+        WHERE lat IS NOT NULL AND lng IS NOT NULL
+    """)
+    pins = [
+        {
+            "id": row["id"],
+            "site_name": row["site_name"],
+            "lat": row["lat"],
+            "lng": row["lng"]
+        }
+        for row in cur.fetchall()
+    ]
+
+    return render_template("index.html",
+                           customers=customers,
+                           pins=pins)
+
 
 
 # -----------------------------
