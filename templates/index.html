@@ -1,52 +1,61 @@
-
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="card-header">
-    <div class="card-title">Field Map · Willows → Cottonwood</div>
-  </div>
-  <div id="map" class="map-container"></div>
-  <div class="small" style="margin-top:0.4rem;">
-    Demo dataset: a few customers, multiple sites, and D/P/A/E jobs seeded across the Northstate corridor.
-  </div>
-</section>
-<section class="card">
-  <div class="card-header">
-    <div class="card-title">Today&apos;s Jobs (Demo)</div>
-  </div>
-  <ul class="list">
-    {% for job in todays_jobs %}
-    <li class="list-item">
-      <span class="division-pill division-{{ job['division_class'] }}">
-        {{ job['division'] }} {{ job['job_number'] }}
-      </span>
-      &nbsp;{{ job['customer_name'] }} &mdash; {{ job['site_name'] }}
-      <span class="status-pill status-{{ job['status_class'] }}" style="margin-left:0.4rem;">
-        {{ job['status'] }}{% if job['has_attachments'] %} 📎{% endif %}
-      </span>
-    </li>
-    {% else %}
-    <li class="list-item small">No demo jobs scheduled for today.</li>
-    {% endfor %}
-  </ul>
-</section>
-<script>
-  const map = L.map('map').setView([40.3, -122.2], 9);
-  L.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key={{ maptiler_key }}', {
-    maxZoom: 19,
-    attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
-  }).addTo(map);
 
-  const pins = {{ pins|tojson }};
-  pins.forEach(p => {
-    const marker = L.circleMarker([p.lat, p.lng], {
-      radius: 6,
-      fillOpacity: 0.9,
-      color: p.border,
-      weight: 2,
-      fillColor: p.fill
+<h1 class="page-title">WellAtlas V4 (Gold Model)</h1>
+
+<div class="nav-row">
+    <a href="{{ url_for('home') }}" class="nav-button">Home</a>
+    <a href="{{ url_for('customers') }}" class="nav-button">Customers</a>
+    <a href="{{ url_for('calendar_view') }}" class="nav-button">Calendar</a>
+    <a href="{{ url_for('map_view') }}" class="nav-button">Field Map</a>
+</div>
+
+<p class="subtitle">
+    Scheduling & Field Ops · Demo Dataset<br>
+    Willows → Cottonwood Corridor
+</p>
+
+<div class="layout">
+    <!-- LEFT SIDE: TODAY'S JOBS -->
+    <div class="jobs-panel">
+        <h2>Today's Jobs (Demo)</h2>
+
+        {% if customers | length == 0 %}
+            <p>No demo jobs scheduled for today.</p>
+        {% else %}
+            <ul class="job-list">
+                {% for c in customers %}
+                    <li>
+                        <strong>{{ c.name }}</strong><br>
+                        <span>{{ c.city }}, {{ c.state }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <!-- RIGHT SIDE: INTERACTIVE MAP -->
+    <div class="map-panel">
+        <div id="map"></div>
+    </div>
+</div>
+
+<!-- MAP SCRIPT -->
+<script>
+    // Default center of the Northstate corridor
+    const map = L.map('map').setView([40.3, -122.2], 8);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
     }).addTo(map);
-    marker.bindPopup(`<strong>${p.customer}</strong><br>${p.site}<br>${p.division_job}`);
-  });
+
+    const pins = {{ pins | tojson }};
+
+    pins.forEach(p => {
+        L.marker([p.lat, p.lng])
+            .addTo(map)
+            .bindPopup(`<b>${p.site_name}</b><br>ID: ${p.id}`);
+    });
 </script>
+
 {% endblock %}
