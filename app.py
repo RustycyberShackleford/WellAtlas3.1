@@ -42,8 +42,7 @@ def home():
     cur = db.cursor()
 
     # Map pins
-        # Map pins
-    cur.execute("""
+        cur.execute("""
         SELECT id, s_name AS site_name, lat, lng
         FROM sites
         WHERE lat IS NOT NULL AND lng IS NOT NULL
