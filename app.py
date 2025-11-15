@@ -128,12 +128,13 @@ def job_detail(job_id):
     cur = db.cursor()
 
     cur.execute("""
-        SELECT j.*, s.s_name AS site_name, c.name AS customer_name
-        FROM jobs j
-        JOIN sites s ON j.site_id = s.id
-        JOIN customers c ON s.customer_id = c.id
-        WHERE j.id=?
-    """, (job_id,))
+    SELECT j.*, s.s_name AS site_name, c.name AS customer_name
+    FROM jobs j
+    JOIN sites s ON j.site_id = s.id
+    JOIN customers c ON s.c_id = c.id
+    WHERE j.id=?
+""", (job_id,))
+
     job = cur.fetchone()
 
     return render_template("job_detail.html", job=job)
