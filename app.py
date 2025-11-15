@@ -35,7 +35,7 @@ def close_db(error):
 
 # -------------------------------------------------
 #  Home (map + today's jobs)
-# -------------------------------------------------
+# ------------------------------------------------
 @app.route("/")
 def home():
     db = get_db()
@@ -52,7 +52,7 @@ def home():
     # Today's date
     today = _date.today().isoformat()
 
-    # Today’s jobs
+    # Today's jobs
     cur.execute("""
         SELECT j.id,
                j.j_title AS title,
@@ -70,7 +70,6 @@ def home():
         jobs_today=jobs_today,
         maptiler_key=MAPTILER_KEY
     )
-
 # -------------------------------------------------
 #  Customers list
 # -------------------------------------------------
