@@ -32,6 +32,7 @@ def home():
     db = get_db()
     cur = db.cursor()
 
+    # get pins
     cur.execute("""
         SELECT id, s_name AS site_name, lat, lng
         FROM sites
@@ -41,6 +42,7 @@ def home():
 
     today = _date.today().isoformat()
 
+    # get today's jobs
     cur.execute("""
         SELECT j.id, j.j_title AS title, s.s_name AS site_name
         FROM jobs j
