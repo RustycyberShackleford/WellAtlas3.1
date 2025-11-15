@@ -34,22 +34,24 @@ def home():
 
     # get pins
     cur.execute("""
-        SELECT id, s_name AS site_name, lat, lng
-        FROM sites
-        WHERE lat IS NOT NULL AND lng IS NOT NULL
-    """)
+    SELECT id, site_name, lat, lng
+    FROM sites
+    WHERE lat IS NOT NULL AND lng IS NOT NULL
+""")
+
     pins = [dict(row) for row in cur.fetchall()]
 
     today = _date.today().isoformat()
 
     # get today's jobs
-    cur.execute("""
-        SELECT j.id, j.j_title AS title, s.s_name AS site_name
-        FROM jobs j
-        JOIN sites s ON j.site_id = s.id
-        WHERE j.start_date = ?
-        ORDER BY j.start_date
-    """, (today,))
+  cur.execute("""
+    SELECT j.id, j.j_title AS title, s.site_name AS site_name
+    FROM jobs j
+    JOIN sites s ON j.site_id = s.id
+    WHERE j.start_date = ?
+    ORDER BY j.start_date
+""", (today,))
+
     jobs_today = cur.fetchall()
 
     return render_template(
