@@ -42,13 +42,13 @@ def home():
     cur = db.cursor()
 
     # Map pins
+        # Map pins
     cur.execute("""
         SELECT id, s_name AS site_name, lat, lng
         FROM sites
         WHERE lat IS NOT NULL AND lng IS NOT NULL
     """)
     pins = [dict(row) for row in cur.fetchall()]
-
     # Today's date
     today = _date.today().isoformat()
 
